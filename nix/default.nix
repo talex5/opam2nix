@@ -3,12 +3,25 @@
 	ocaml-ng, ocamlPackagesOverride ? ocaml-ng.ocamlPackages_4_13,
 }:
 let
-	sources = pkgs.callPackage ./sources.nix { sourcesFile = ./sources.json; };
 	ocamlPackages = ocamlPackagesOverride;
+        srcs = {
+          "spdx_licenses" = builtins.fetchurl {
+            url = "https://github.com/kit-ty-kate/spdx_licenses/archive/c6ba0493c25ce4d9ff8cb45b228ce412f4444aa0.tar.gz";
+            sha256 = "011r84db5mwjyjwbrbf8vajy9fnbmzyxjk15avglq0550dqjgv5z";
+          };
+          # These were copied from nixpkgs/pkgs/development/tools/ocaml/opam/default.nix (they are not exposed):
+          "0install-solver" = builtins.fetchurl {
+            url = "https://github.com/0install/0install/releases/download/v2.17/0install-v2.17.tbz";
+            sha256 = "08q95mzmf9pyyqs68ff52422f834hi313cxmypwrxmxsabcfa10p";
+          };
+          "opam-0install" = builtins.fetchurl {
+            url = "https://github.com/ocaml-opam/opam-0install-solver/releases/download/v0.4.2/opam-0install-cudf-v0.4.2.tbz";
+            sha256 = "10wma4hh9l8hk49rl8nql6ixsvlz3163gcxspay5fwrpbg51fmxr";
+          };
+        };
 in
 let
 	ocaml = ocamlPackages.ocaml;
-	opam = callOcamlPackage ./opam.nix { inherit ocamlPackages; src = sources.opam; };
 	callOcamlPackage = ocamlPackages.newScope {
 		inherit ocaml ocamlPackages;
 		dune = ocamlPackages.dune_2;
@@ -17,51 +30,40 @@ let
 			configureFlags = [];
 			doCheck = false;
 		});
-		opam-core = callOcamlPackage opam.core {};
-		opam-format = callOcamlPackage opam.format {};
-		opam-installer = callOcamlPackage opam.installer {};
-		opam-repository = callOcamlPackage opam.repository {};
-		opam-solver = callOcamlPackage opam.solver {};
-		opam-state = callOcamlPackage opam.state {};
+                inherit (ocamlPackages) opam-core opam-format opam-repository opam-solver opam-state;
+                opam-installer = pkgs.opam.installer;
 
 		zeroinstall-solver = callOcamlPackage ({ buildDunePackage }:
 			buildDunePackage {
 				useDune2 = true;
 				pname = "0install-solver";
 				version = "master";
-				src = sources.zeroinstall;
+				src = srcs."0install-solver";
 			}
 		) {};
 		
 		opam-0install = callOcamlPackage ({ buildDunePackage, fmt, cmdliner, opam-state, zeroinstall-solver }:
 			buildDunePackage {
 				pname = "opam-0install";
-				src = sources.opam-0install-solver;
+				src = srcs.opam-0install;
 				version = "master";
 				useDune2 = true;
 				propagatedBuildInputs = [fmt cmdliner opam-state zeroinstall-solver];
 			}
 		) {};
 
-		opam-file-format = callOcamlPackage ({buildDunePackage}:
-			buildDunePackage {
-				pname = "opam-file-format";
-				version = "dev";
-				src = sources.opam-file-format;
-				useDune2 = true;
-			}
-		) {};
+		opam-file-format = ocamlPackages.opam-file-format;
 
 		spdx_licenses = callOcamlPackage ({buildDunePackage}:
 			buildDunePackage {
 				pname = "spdx_licenses";
 				version = "main";
-				src = sources.spdx_licenses;
+				src = srcs.spdx_licenses;
 				useDune2 = true;
 			}
 		) {};
 	};
 
 in callOcamlPackage ./opam2nix.nix {
-	opam2nixSrc = sources.local { url = ../.; ref = "HEAD"; };
+	opam2nixSrc = ../.;
 }

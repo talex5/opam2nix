@@ -11,7 +11,10 @@
       in
       {
         packages = rec {
-          opam2nix = import ./nix { inherit pkgs; ocaml-ng = pkgs.ocaml-ng; };
+          opam2nix = import ./nix {
+            inherit pkgs;
+            ocaml-ng = pkgs.ocaml-ng;
+          };
           default = opam2nix;
         };
       }
